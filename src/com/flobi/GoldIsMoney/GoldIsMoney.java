@@ -1,5 +1,17 @@
 package com.flobi.GoldIsMoney;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -8,13 +20,17 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Server;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -24,62 +40,23 @@ public class GoldIsMoney extends JavaPlugin {
 	private static Server server;
 	
 	// Names:
-	private static String nameSingular = "nugus";
-	private static String namePlural = "nugi";
-	private static String formatSingular = "Ŋ%n";
-	private static String formatPlural = "Ŋ%ns";
+	private static String nameSingular = "gnugus";
+	private static String namePlural = "gnugi";
+	private static String formatSingular = "%n gnugus";
+	private static String formatPlural = "%n gnugi";
 
 	public static Economy econ = null;
-
-	@Override
-    public boolean onCommand(CommandSender sender, Command command, String commandLabel, String[] args) {
-        if (sender instanceof Player) {
-            // Check if Player
-            // If so, ignore command if player is not Op
-            Player p = (Player) sender;
-            if (!p.isOp()) {
-                return true;
-            }
-        }
-
-        if (econ == null) {
-	        if (server.getPluginManager().getPlugin("Vault") == null) {
-	            return false;
-	        }
-	        RegisteredServiceProvider<Economy> rsp = server.getServicesManager().getRegistration(Economy.class);
-	        if (rsp == null) {
-	            return false;
-	        }
-	        econ = rsp.getProvider();
-        }
-        if (econ == null) return false;
-        
-        if (command.getName().equalsIgnoreCase("vt")) {
-        	if (args.length < 2) return false;
-    		if (!econ.hasAccount(args[1])) {
-        		sender.sendMessage(args[1] + " has no account.");
-        		return true;
-    		}
-    		
-    		String playerName = args[1];
-    		
-        	if (args[0].equalsIgnoreCase("deposit")) {
-        		if (args.length < 3) return false;
-        		econ.depositPlayer(playerName, Double.parseDouble(args[2]));
-        	}
-        	if (args[0].equalsIgnoreCase("withdraw")) {
-        		if (args.length < 3) return false;
-        		econ.withdrawPlayer(playerName, Double.parseDouble(args[2]));
-        	}
-    		sender.sendMessage(playerName + " has " + econ.format(econ.getBalance(playerName)) + ".");
-
-            return true;
-        }
-		return false;
-    }
+	private static File dataFolder;
+	private static Plugin plugin;
 
 	// Setup
 	public void onEnable(){
+		plugin = this;
+
+		dataFolder = getDataFolder();
+		if (!dataFolder.isDirectory()) dataFolder.mkdir(); 
+		loadConfig();
+		
 		server = getServer();
         server.getPluginManager().registerEvents(new Listener() {
             @SuppressWarnings("unused")
@@ -94,12 +71,21 @@ public class GoldIsMoney extends JavaPlugin {
             	saveOfflineBalance(event.getPlayer().getName());
             	getLogger().info(event.getPlayer().getName() + " has quit (GoldIsMoney) and has " + getBalance(event.getPlayer().getName()) + ".");
             }
+            @SuppressWarnings("unused")
+			@EventHandler
+			public void inventoryClickEvent(InventoryClickEvent event) {
+            	final String playerName = event.getWhoClicked().getName();
+            	getServer().getScheduler().scheduleAsyncDelayedTask(plugin, new Runnable() {
+         		   public void run() {
+                       	offloadSystemIOU(playerName);
+        		   }
+        		}, 1L);
+            }
         }, this);
-
-        getCommand("vt").setExecutor(this);
+        SystemOwesPlayer = loadMapStringLong("SystemOwesPlayer.ser");
+        OfflineBalance = loadMapStringLong("OfflineBalance.ser");
 
         getLogger().info("GoldIsMoney has been enabled!");
-		getLogger().info("flobi has: " + getBalance("flobi"));
     }
      
     public void onDisable(){ 
@@ -135,6 +121,7 @@ public class GoldIsMoney extends JavaPlugin {
     	if (player == null) {
         	if (OfflineBalance.containsKey(playerName)) {
         		OfflineBalance.put(playerName, amount);
+        		saveObject(OfflineBalance, "OfflineBalance.ser");
         	}
         	return;
     	}
@@ -184,10 +171,10 @@ public class GoldIsMoney extends JavaPlugin {
     	return player;
     }
 
-    // TODO: Should be called in inventory updates.
-    private static void offloadSystemIOU(Player player) {
-    	if (SystemOwesPlayer.containsKey(player.getName())) {
-    		setInventoryBalance(player, getInventoryBalance(player.getInventory()));
+	private static void offloadSystemIOU(String playerName) {
+		Player player = server.getPlayer(playerName);
+    	if (SystemOwesPlayer.containsKey(playerName)) {
+    		setInventoryBalance(player, getBalance(playerName));
     	}
     }
     
@@ -196,19 +183,21 @@ public class GoldIsMoney extends JavaPlugin {
     	if (OfflineBalance.containsKey(playerName)) {
     		setInventoryBalance(player, OfflineBalance.get(playerName));
     		OfflineBalance.remove(playerName);
+    		saveObject(OfflineBalance, "OfflineBalance.ser");
     	}
     }
     private static void setInventoryBalance(Player player, long newBalance) {
     	String playerName = player.getName();
 		PlayerInventory inventory = player.getInventory();
 		
-    	if (SystemOwesPlayer.containsKey(playerName)) {
-    		newBalance += SystemOwesPlayer.get(playerName);
-    		SystemOwesPlayer.remove(playerName);
-    	}
-		
     	long oldBalance = getInventoryBalance(inventory);
     	
+    	// New balance should include any system owed money.
+    	if (SystemOwesPlayer.containsKey(playerName)) {
+    		SystemOwesPlayer.remove(playerName);
+    		saveObject(SystemOwesPlayer, "SystemOwesPlayer.ser");
+    	}
+
     	if (newBalance == oldBalance) return;
     	
     	long difference = newBalance - oldBalance;
@@ -342,7 +331,6 @@ public class GoldIsMoney extends JavaPlugin {
     		
     		difference = change;
     	} 
-		server.getConsoleSender().sendMessage("difference: " + difference);
 		if (difference > 0) {
 			items = inventory.getContents();
 			// Fill as many blocks as possible.
@@ -390,6 +378,8 @@ public class GoldIsMoney extends JavaPlugin {
         			}
         		}
         	}
+    		// Gotta refresh this because there are spots that were null that aren't anymore.
+			items = inventory.getContents();
     		if (difference > 8) {
     			// Fill as many ingots as possible.
         		for (ItemStack item : items) {
@@ -402,6 +392,8 @@ public class GoldIsMoney extends JavaPlugin {
         			}
         		}
         	}
+    		// Gotta refresh this because there are spots that were null that aren't anymore.
+			items = inventory.getContents();
     		if (difference > 0) {
     			// Fill as many nuggets as possible.
         		for (ItemStack item : items) {
@@ -419,6 +411,7 @@ public class GoldIsMoney extends JavaPlugin {
 		if (difference > 0) {
 			// They didn't have enough space.
 			SystemOwesPlayer.put(playerName, difference);
+    		saveObject(SystemOwesPlayer, "SystemOwesPlayer.ser");
 		}
 	}
 
@@ -431,9 +424,11 @@ public class GoldIsMoney extends JavaPlugin {
     	// Balance includes any owed money.
     	if (SystemOwesPlayer.containsKey(playerName)) {
     		SystemOwesPlayer.remove(playerName);
+    		saveObject(SystemOwesPlayer, "SystemOwesPlayer.ser");
     	}
     	
     	OfflineBalance.put(playerName, balance);
+		saveObject(OfflineBalance, "OfflineBalance.ser");
     }
 
     private static long getInventoryBalance(PlayerInventory inventory) {
@@ -462,14 +457,87 @@ public class GoldIsMoney extends JavaPlugin {
     	return balance;
     }
     
+	private static void saveObject(Object arraylist, String filename) {
+    	File saveFile = new File(dataFolder, filename);
+    	
+    	try {
+			//use buffering
+    		if (saveFile.exists()) saveFile.delete();
+			OutputStream file = new FileOutputStream(saveFile.getAbsolutePath());
+			OutputStream buffer = new BufferedOutputStream(file);
+			ObjectOutput output = new ObjectOutputStream(buffer);
+			try {
+				output.writeObject(arraylist);
+			}
+	  	    catch(IOException ex){
+	  	    	server.getConsoleSender().sendMessage("Can't save file, " + filename);
+	    		return;
+	  	    }
+			finally {
+				output.close();
+			}
+  	    }  
+  	    catch(IOException ex){
+  	    	server.getConsoleSender().sendMessage("Can't save file, " + filename);
+    		return;
+  	    }
+	}
+	@SuppressWarnings({ "unchecked", "finally" })
+	private static Map<String, Long> loadMapStringLong(String filename) {
+    	File saveFile = new File(dataFolder, filename);
+    	Map<String, Long> importedObjects = new HashMap<String, Long>();
+    	try {
+			//use buffering
+			if (saveFile.exists()) {
+				InputStream file = new FileInputStream(saveFile.getAbsolutePath());
+				InputStream buffer = new BufferedInputStream(file);
+				ObjectInput input = new ObjectInputStream (buffer);
+				importedObjects = (Map<String, Long>) input.readObject();
+				input.close();
+			}
+  	    }  
+		finally {
+  	    	return importedObjects;
+		}
+	}
+    /**
+	 * Loads config.yml and language.yml configuration files.
+	 */
+    private static void loadConfig() {
+		File configFile = null;
+		InputStream defConfigStream = null;
+		YamlConfiguration defConfig = null;
+		YamlConfiguration config = null;
+		
+		defConfigStream = plugin.getResource("config.yml");
+    	configFile = new File(dataFolder, "config.yml");
+	    config = YamlConfiguration.loadConfiguration(configFile);
+	 
+		// Look for defaults in the jar
+	    if (defConfigStream != null) {
+	        defConfig = YamlConfiguration.loadConfiguration(defConfigStream);
+	        defConfigStream = null;
+	    }
+	    if (defConfig != null) {
+	    	config.setDefaults(defConfig);
+	    }
+	    
+		nameSingular = config.getString("name-singular");
+		namePlural = config.getString("name-plural");
+		formatSingular = config.getString("format-singular");
+		formatPlural = config.getString("format-plural");
+
+		// Update file in resource folder.
+		FileConfiguration cleanConfig = new YamlConfiguration();
+		Map<String, Object> configValues = config.getDefaults().getValues(true);
+		for (Map.Entry<String, Object> configEntry : configValues.entrySet()) {
+			cleanConfig.set(configEntry.getKey(), config.get(configEntry.getKey()));
+		}
+
+		try {
+			cleanConfig.save(configFile);
+		} catch(IOException ex) {
+			server.getLogger().severe("Cannot save config.yml");
+		}
+    }
 }
-
-
-
-
-
-
-
-
-
-
