@@ -3,7 +3,11 @@ package com.flobi.GoldIsMoney;
 import java.util.HashMap;
 import java.util.Map;
 
+import net.milkbowl.vault.economy.Economy;
+
 import org.bukkit.Server;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -11,12 +15,68 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class GoldIsMoney extends JavaPlugin {
 	private static Map<String, Long> SystemOwesPlayer = new HashMap<String, Long>();
 	private static Map<String, Long> OfflineBalance = new HashMap<String, Long>();
 	private static Server server;
+	
+	// Names:
+	private static String nameSingular = "nugus";
+	private static String namePlural = "nugi";
+	private static String formatSingular = "Ŋ%n";
+	private static String formatPlural = "Ŋ%ns";
+
+	public static Economy econ = null;
+
+	@Override
+    public boolean onCommand(CommandSender sender, Command command, String commandLabel, String[] args) {
+        if (sender instanceof Player) {
+            // Check if Player
+            // If so, ignore command if player is not Op
+            Player p = (Player) sender;
+            if (!p.isOp()) {
+                return true;
+            }
+        }
+
+        if (econ == null) {
+	        if (server.getPluginManager().getPlugin("Vault") == null) {
+	            return false;
+	        }
+	        RegisteredServiceProvider<Economy> rsp = server.getServicesManager().getRegistration(Economy.class);
+	        if (rsp == null) {
+	            return false;
+	        }
+	        econ = rsp.getProvider();
+        }
+        if (econ == null) return false;
+        
+        if (command.getName().equalsIgnoreCase("vt")) {
+        	if (args.length < 2) return false;
+    		if (!econ.hasAccount(args[1])) {
+        		sender.sendMessage(args[1] + " has no account.");
+        		return true;
+    		}
+    		
+    		String playerName = args[1];
+    		
+        	if (args[0].equalsIgnoreCase("deposit")) {
+        		if (args.length < 3) return false;
+        		econ.depositPlayer(playerName, Double.parseDouble(args[2]));
+        	}
+        	if (args[0].equalsIgnoreCase("withdraw")) {
+        		if (args.length < 3) return false;
+        		econ.withdrawPlayer(playerName, Double.parseDouble(args[2]));
+        	}
+    		sender.sendMessage(playerName + " has " + econ.format(econ.getBalance(playerName)) + ".");
+
+            return true;
+        }
+		return false;
+    }
 
 	// Setup
 	public void onEnable(){
@@ -26,23 +86,25 @@ public class GoldIsMoney extends JavaPlugin {
 			@EventHandler
             public void playerJoin(PlayerJoinEvent event) {
             	loadOfflineBalance(event.getPlayer());
-            	getLogger().info(event.getPlayer() + " has joined (GoldIsMoney) and has " + getBalance("flobi") + ".");
+            	getLogger().info(event.getPlayer().getName() + " has joined (GoldIsMoney) and has " + getBalance(event.getPlayer().getName()) + ".");
             }
             @SuppressWarnings("unused")
 			@EventHandler
             public void playerQuit(PlayerQuitEvent event) {
             	saveOfflineBalance(event.getPlayer().getName());
-            	getLogger().info(event.getPlayer() + " has quit (GoldIsMoney) and has " + getBalance("flobi") + ".");
+            	getLogger().info(event.getPlayer().getName() + " has quit (GoldIsMoney) and has " + getBalance(event.getPlayer().getName()) + ".");
             }
         }, this);
 
-		getLogger().info("GoldIsMoney has been enabled!");
+        getCommand("vt").setExecutor(this);
+
+        getLogger().info("GoldIsMoney has been enabled!");
 		getLogger().info("flobi has: " + getBalance("flobi"));
     }
      
     public void onDisable(){ 
     	getLogger().info("GoldIsMoney has been disabled.");
-    }
+    } 
     
     // Access
     public static long getBalance(String playerName) {
@@ -61,36 +123,56 @@ public class GoldIsMoney extends JavaPlugin {
     	}
     }
 
-    public static long has(String playerName) {
-    	return 0;
-    }
-
-    public static long withdrawPlayer(String playerName) {
-    	return 0;
-    }
-
-    public static long depositPlayer(String playerName) {
-    	return 0;
-    }
-
-    public static long format(String playerName) {
-    	return 0;
-    }
-
-    public static long currencyNameSingular(String playerName) {
-    	return 0;
-    }
-
-    public static long currencyNamePlural(String playerName) {
-    	return 0;
+    public static boolean has(String playerName, long amount) {
+    	return getBalance(playerName) >= amount;
     }
     
-    public static long hasAccount(String playerName) {
-    	return 0;
+    private static void setBalance(String playerName, long amount) {
+    	amount = Math.max(0, amount);
+
+    	Player player = getPlayer(playerName);
+    	
+    	if (player == null) {
+        	if (OfflineBalance.containsKey(playerName)) {
+        		OfflineBalance.put(playerName, amount);
+        	}
+        	return;
+    	}
+    	
+    	setInventoryBalance(player, amount);
+    	
+    	return;
+    }
+
+    public static void withdrawPlayer(String playerName, long amount) {
+    	if (amount <= 0) return;
+    	long newBalance = getBalance(playerName) - amount;
+    	setBalance(playerName, newBalance);
+    }
+
+    public static void depositPlayer(String playerName, long amount) {
+    	if (amount <= 0) return;
+    	long newBalance = getBalance(playerName) + amount;
+    	setBalance(playerName, newBalance);
+    }
+
+    public static String format(long amount) {
+    	if (amount == 1) {
+	    	return formatSingular.replaceAll("%n", amount + "");
+    	}
+    	return formatPlural.replaceAll("%n", amount + "");
+    }
+
+    public static String currencyNameSingular() {
+    	return nameSingular;
+    }
+
+    public static String currencyNamePlural() {
+    	return namePlural;
     }
     
-    public static long createPlayerAccount(String playerName) {
-    	return 0;
+    public static boolean hasAccount(String playerName) {
+    	return getPlayer(playerName) != null || OfflineBalance.containsKey(playerName);
     }
     
     // Utility
@@ -110,7 +192,6 @@ public class GoldIsMoney extends JavaPlugin {
     }
     
     private static void loadOfflineBalance(Player player) {
-    	// TODO: Test loadOfflineBalance()
     	String playerName = player.getName();
     	if (OfflineBalance.containsKey(playerName)) {
     		setInventoryBalance(player, OfflineBalance.get(playerName));
@@ -118,11 +199,10 @@ public class GoldIsMoney extends JavaPlugin {
     	}
     }
     private static void setInventoryBalance(Player player, long newBalance) {
-    	
-		// TODO: Test setInventoryBalance().
-
     	String playerName = player.getName();
 		PlayerInventory inventory = player.getInventory();
+		
+		server.getConsoleSender().sendMessage("Setting " + playerName + "'s balance to " + newBalance);
 
     	if (SystemOwesPlayer.containsKey(playerName)) {
     		newBalance += SystemOwesPlayer.get(playerName);
@@ -130,14 +210,15 @@ public class GoldIsMoney extends JavaPlugin {
     	}
 		
     	long oldBalance = getInventoryBalance(inventory);
-    	newBalance = Math.min(newBalance, -1);
     	
     	if (newBalance == oldBalance) return;
     	
-    	long difference = oldBalance - newBalance;
+    	long difference = newBalance - oldBalance;
 		ItemStack[] items;
 		int stackCount;
 		
+		server.getConsoleSender().sendMessage("Difference is " + difference);
+
 		if (difference < 0) {
 			items = inventory.getContents();
 	    	long nuggetCount = 0;
@@ -267,7 +348,7 @@ public class GoldIsMoney extends JavaPlugin {
 	    			if (difference < 81) break;
 	    			if (item != null && item.getTypeId() == 41 && item.getAmount() < 64) {
 	    				stackCount = item.getAmount();
-	    				item.setAmount((int) Math.max(64, stackCount + Math.floor((double) difference / 81)));
+	    				item.setAmount((int) Math.min(64, stackCount + Math.floor((double) difference / 81)));
 	    				difference -= (item.getAmount() - stackCount) * 81;
 	    			}
 	    		}
@@ -278,7 +359,7 @@ public class GoldIsMoney extends JavaPlugin {
         			if (difference < 9) break;
         			if (item != null && item.getTypeId() == 266 && item.getAmount() < 64) {
         				stackCount = item.getAmount();
-        				item.setAmount((int) Math.max(64, stackCount + Math.floor((double) difference / 9)));
+        				item.setAmount((int) Math.min(64, stackCount + Math.floor((double) difference / 9)));
         				difference -= (item.getAmount() - stackCount) * 9;
         			}
         		}
@@ -289,7 +370,7 @@ public class GoldIsMoney extends JavaPlugin {
         			if (difference < 1) break;
         			if (item != null && item.getTypeId() == 371 && item.getAmount() < 64) {
         				stackCount = item.getAmount();
-        				item.setAmount((int) Math.max(64, stackCount + difference));
+        				item.setAmount((int) Math.min(64, stackCount + difference));
         				difference -= item.getAmount() - stackCount;
         			}
         		}
@@ -300,7 +381,7 @@ public class GoldIsMoney extends JavaPlugin {
         			if (difference < 81) break;
         			if (item == null) {
         				// Got space for a stack of blocks.
-        				stackCount = (int) Math.max(64, Math.floor((double) difference / 81));
+        				stackCount = (int) Math.min(64, Math.floor((double) difference / 81));
         				inventory.addItem(new ItemStack(41, stackCount));
         				difference -= stackCount * 81;
         			}
@@ -312,7 +393,7 @@ public class GoldIsMoney extends JavaPlugin {
         			if (difference < 9) break;
         			if (item == null) {
         				// Got space for a stack of ingots.
-        				stackCount = (int) Math.max(64, Math.floor((double) difference / 9));
+        				stackCount = (int) Math.min(64, Math.floor((double) difference / 9));
         				inventory.addItem(new ItemStack(266, stackCount));
         				difference -= stackCount * 9;
         			}
@@ -324,7 +405,7 @@ public class GoldIsMoney extends JavaPlugin {
         			if (difference < 0) break;
         			if (item == null) {
         				// Got space for a stack of nuggets.
-        				stackCount = (int) Math.max(64, Math.floor((double) difference));
+        				stackCount = (int) Math.min(64, Math.floor((double) difference));
         				inventory.addItem(new ItemStack(371, stackCount));
         				difference -= stackCount;
         			}
@@ -357,8 +438,10 @@ public class GoldIsMoney extends JavaPlugin {
     	
 		ItemStack[] items = inventory.getContents();
 
+
 		for (ItemStack item : items) {
 			if (item != null) {
+				
 				switch (item.getTypeId()) {
 				case 371: // Nugget
 					balance += item.getAmount();
