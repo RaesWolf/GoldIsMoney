@@ -202,8 +202,6 @@ public class GoldIsMoney extends JavaPlugin {
     	String playerName = player.getName();
 		PlayerInventory inventory = player.getInventory();
 		
-		server.getConsoleSender().sendMessage("Setting " + playerName + "'s balance to " + newBalance);
-
     	if (SystemOwesPlayer.containsKey(playerName)) {
     		newBalance += SystemOwesPlayer.get(playerName);
     		SystemOwesPlayer.remove(playerName);
@@ -217,9 +215,10 @@ public class GoldIsMoney extends JavaPlugin {
 		ItemStack[] items;
 		int stackCount;
 		
-		server.getConsoleSender().sendMessage("Difference is " + difference);
-
 		if (difference < 0) {
+			// This should make the math easier:
+			difference = 0 - difference;
+			
 			items = inventory.getContents();
 	    	long nuggetCount = 0;
 	    	long ingotCount = 0;
@@ -238,22 +237,24 @@ public class GoldIsMoney extends JavaPlugin {
 				}
 			}
 			
-			int nuggetMod = (int) (nuggetCount + difference) % 9;
-			int ingotMod = (int) ((ingotCount + ((difference + nuggetMod) / 9)) % 9);
+			int nuggetMod = (int) (9 - (difference - nuggetCount) % 9) % 9;
+			int ingotMod = (int) (9 - ((((difference + nuggetMod - 9) / 9) - ingotCount) % 9)) % 9;
 			
 			if (nuggetCount == 0) {
 				// There are no nugget stacks, calculate the mod as change.
 				change += nuggetMod;
-				difference -= nuggetMod;
+				difference += nuggetMod;
+				ingotMod += 8;
+				ingotMod %= 9;
 			} else {
 				// Remove nuggets first:
 	    		for (ItemStack item : items) {
 	    			if (item != null && item.getTypeId() == 371) {
 						stackCount = item.getAmount();
 	    				
-	    				if (stackCount < -difference) {
+	    				if (stackCount > difference) {
 	    					// This stack is more than enough to cover our debt:
-	    					item.setAmount((int) (stackCount + difference));
+	    					item.setAmount((int) (stackCount - difference));
 	    					difference = 0;
 	    					break;
 	    				}
@@ -261,13 +262,13 @@ public class GoldIsMoney extends JavaPlugin {
 	    					// Last stack standing, leave the nuggetMod.
 	    					item.setAmount(nuggetMod);
 	    					nuggetCount -= stackCount - nuggetMod;
-	    					difference += stackCount - nuggetMod;
+	    					difference -= stackCount - nuggetMod;
 	    					break;
 	    				} else {
 	    					// Owe this or more than this, take the stack.
 	    					inventory.remove(item);
 	    					nuggetCount -= stackCount;
-	    					difference += stackCount;
+	    					difference -= stackCount;
 	    				}
 	    				if (difference == 0) {
 	    					break;
@@ -275,23 +276,23 @@ public class GoldIsMoney extends JavaPlugin {
 	    			}
 	    		}
 			}
-    		if (difference < 0) {
+    		if (difference > 0) {
 	    		// The difference is now in ingot measurement.
 	    		difference /= 9;
 
 				if (ingotCount == 0) {
 					// There are no ingot stacks, calculate the mod as change.
 					change += ingotMod * 9;
-					difference -= ingotMod;
+					difference += ingotMod;
 				} else {
 					// Remove ingots second:
 		    		for (ItemStack item : items) {
 		    			if (item != null && item.getTypeId() == 266) {
 							stackCount = item.getAmount();
 		    				
-		    				if (stackCount < -difference) {
+		    				if (stackCount > difference) {
 		    					// This stack is more than enough to cover our debt:
-		    					item.setAmount((int) (stackCount + difference));
+		    					item.setAmount((int) (stackCount - difference));
 		    					difference = 0;
 		    					break;
 		    				}
@@ -299,13 +300,13 @@ public class GoldIsMoney extends JavaPlugin {
 		    					// Last stack standing, leave the ingotMod.
 		    					item.setAmount(ingotMod);
 		    					ingotCount -= stackCount - ingotMod;
-		    					difference += stackCount - ingotMod;
+		    					difference -= stackCount - ingotMod;
 		    					break;
 		    				} else {
 		    					// Owe this or more than this, take the stack.
 		    					inventory.remove(item);
 		    					ingotCount -= stackCount;
-		    					difference += stackCount;
+		    					difference -= stackCount;
 		    				}
 		    				if (difference == 0) {
 		    					break;
@@ -314,7 +315,7 @@ public class GoldIsMoney extends JavaPlugin {
 		    		}
 				}
     		}
-    		if (difference < 0) {
+    		if (difference > 0) {
 	    		// The difference is now in block measurement.
 	    		difference /= 9;
 
@@ -323,14 +324,15 @@ public class GoldIsMoney extends JavaPlugin {
 	    			if (item != null && item.getTypeId() == 41) {
 						stackCount = item.getAmount();
 	    				
-	    				if (stackCount < -difference) {
-	    					item.setAmount((int) (stackCount + difference));
+	    				if (stackCount > difference) {
+	    					// This stack is more than enough to cover our debt:
+	    					item.setAmount((int) (stackCount - difference));
 	    					difference = 0;
 	    					break;
 	    				}
     					// Owe this or more than this, take the stack.
     					inventory.remove(item);
-    					difference += stackCount;
+    					difference -= stackCount;
 	    				if (difference == 0) {
 	    					break;
 	    				}
@@ -340,6 +342,7 @@ public class GoldIsMoney extends JavaPlugin {
     		
     		difference = change;
     	} 
+		server.getConsoleSender().sendMessage("difference: " + difference);
 		if (difference > 0) {
 			items = inventory.getContents();
 			// Fill as many blocks as possible.
