@@ -15,8 +15,6 @@ import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
-import net.milkbowl.vault.economy.Economy;
-
 import org.bukkit.Server;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -42,7 +40,6 @@ public class GoldIsMoney extends JavaPlugin {
 	private static String formatSingular = "%n gnugus";
 	private static String formatPlural = "%n gnugi";
 
-	public static Economy econ = null;
 	private static File dataFolder;
 	private static Plugin plugin;
 
