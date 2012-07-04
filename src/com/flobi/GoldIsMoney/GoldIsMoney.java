@@ -57,13 +57,11 @@ public class GoldIsMoney extends JavaPlugin {
 			@EventHandler
             public void playerJoin(PlayerJoinEvent event) {
             	loadOfflineBalance(event.getPlayer());
-            	getLogger().info(event.getPlayer().getName() + " has joined (GoldIsMoney) and has " + getBalance(event.getPlayer().getName()) + ".");
             }
             @SuppressWarnings("unused")
 			@EventHandler
             public void playerQuit(PlayerQuitEvent event) {
             	saveOfflineBalance(event.getPlayer().getName());
-            	getLogger().info(event.getPlayer().getName() + " has quit (GoldIsMoney) and has " + getBalance(event.getPlayer().getName()) + ".");
             }
             @SuppressWarnings("unused")
 			@EventHandler
@@ -88,6 +86,7 @@ public class GoldIsMoney extends JavaPlugin {
     
     // Access
     public static long getBalance(String playerName) {
+    	if (!hasPermission(playerName)) return 0;
     	Player player = getPlayer(playerName);
     	
     	if (player == null) {
@@ -104,10 +103,12 @@ public class GoldIsMoney extends JavaPlugin {
     }
 
     public static boolean has(String playerName, long amount) {
+    	if (!hasPermission(playerName)) return false;
     	return getBalance(playerName) >= amount;
     }
     
     private static void setBalance(String playerName, long amount) {
+    	if (!hasPermission(playerName)) return;
     	amount = Math.max(0, amount);
 
     	Player player = getPlayer(playerName);
@@ -126,6 +127,7 @@ public class GoldIsMoney extends JavaPlugin {
     }
 
     public static void withdrawPlayer(String playerName, long amount) {
+    	if (!hasPermission(playerName)) return;
     	if (amount <= 0) return;
     	long newBalance = getBalance(playerName) - amount;
     	setBalance(playerName, newBalance);
@@ -153,6 +155,7 @@ public class GoldIsMoney extends JavaPlugin {
     }
     
     public static boolean hasAccount(String playerName) {
+    	if (!hasPermission(playerName)) return false;
     	return getPlayer(playerName) != null || OfflineBalance.containsKey(playerName);
     }
     
@@ -166,6 +169,7 @@ public class GoldIsMoney extends JavaPlugin {
     }
 
 	private static void offloadSystemIOU(String playerName) {
+    	if (!hasPermission(playerName)) return;
 		Player player = server.getPlayer(playerName);
     	if (SystemOwesPlayer.containsKey(playerName)) {
     		setInventoryBalance(player, getBalance(playerName));
@@ -410,6 +414,7 @@ public class GoldIsMoney extends JavaPlugin {
 	}
 
 	private void saveOfflineBalance(String playerName) {
+    	if (!hasPermission(playerName)) return;
 		long balance = getBalance(playerName);
 		// Make sure there's not already a key there.
     	if (OfflineBalance.containsKey(playerName)) {
@@ -533,5 +538,11 @@ public class GoldIsMoney extends JavaPlugin {
 		} catch(IOException ex) {
 			server.getLogger().severe("Cannot save config.yml");
 		}
+    }
+
+    private static boolean hasPermission(String playerName) {
+    	Player player = server.getPlayer(playerName);
+    	if (player == null) return OfflineBalance.containsKey(playerName);
+    	return player.hasPermission("goldismoney.use");
     }
 }
