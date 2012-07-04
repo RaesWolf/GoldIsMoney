@@ -15,6 +15,7 @@ import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.bukkit.GameMode;
 import org.bukkit.Server;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -39,6 +40,8 @@ public class GoldIsMoney extends JavaPlugin {
 	private static String namePlural = "gnugi";
 	private static String formatSingular = "%n gnugus";
 	private static String formatPlural = "%n gnugi";
+	
+	private static boolean allowCreativeGold = false;
 
 	private static File dataFolder;
 	private static Plugin plugin;
@@ -525,6 +528,7 @@ public class GoldIsMoney extends JavaPlugin {
 		namePlural = config.getString("name-plural");
 		formatSingular = config.getString("format-singular");
 		formatPlural = config.getString("format-plural");
+		allowCreativeGold = config.getBoolean("allow-creative-gold");
 
 		// Update file in resource folder.
 		FileConfiguration cleanConfig = new YamlConfiguration();
@@ -543,6 +547,8 @@ public class GoldIsMoney extends JavaPlugin {
     private static boolean hasPermission(String playerName) {
     	Player player = server.getPlayer(playerName);
     	if (player == null) return OfflineBalance.containsKey(playerName);
+    	if (player.getGameMode() == GameMode.CREATIVE && !allowCreativeGold) return false;
     	return player.hasPermission("goldismoney.use");
+    	
     }
 }
