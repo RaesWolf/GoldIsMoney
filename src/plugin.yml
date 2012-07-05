@@ -7,7 +7,6 @@ author: flobi
 website: http://www.aerialheights.com/
 
 database: false
-depend: [Vault]
 
 permissions:
   goldismoney.use:
