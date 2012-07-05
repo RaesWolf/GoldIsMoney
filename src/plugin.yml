@@ -1,12 +1,13 @@
 name: GoldIsMoney
 main: com.flobi.GoldIsMoney.GoldIsMoney
-version: 1.1.0
+version: 1.1.1
 
 description: Economy driven by inventory gold.
 author: flobi
 website: http://www.aerialheights.com/
 
 database: false
+depend: [Vault]
 
 permissions:
   goldismoney.use:

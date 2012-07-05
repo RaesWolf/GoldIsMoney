@@ -80,6 +80,13 @@ public class GoldIsMoney extends JavaPlugin {
         SystemOwesPlayer = loadMapStringLong("SystemOwesPlayer.ser");
         OfflineBalance = loadMapStringLong("OfflineBalance.ser");
 
+        // Load up the Plugin metrics
+        try {
+            MetricsLite metrics = new MetricsLite(this);
+            metrics.start();
+        } catch (IOException e) {
+            // Failed to submit the stats :-(
+        }
         getLogger().info("GoldIsMoney has been enabled!");
     }
      
