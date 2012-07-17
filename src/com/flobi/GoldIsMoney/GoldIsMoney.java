@@ -263,6 +263,7 @@ public class GoldIsMoney extends JavaPlugin {
 	    					break;
 	    				} else {
 	    					// Owe this or more than this, take the stack.
+	    					item.setAmount(-1);
 	    					inventory.remove(item);
 	    					nuggetCount -= stackCount;
 	    					difference -= stackCount;
@@ -301,6 +302,7 @@ public class GoldIsMoney extends JavaPlugin {
 		    					break;
 		    				} else {
 		    					// Owe this or more than this, take the stack.
+		    					item.setAmount(-1);
 		    					inventory.remove(item);
 		    					ingotCount -= stackCount;
 		    					difference -= stackCount;
@@ -328,6 +330,7 @@ public class GoldIsMoney extends JavaPlugin {
 	    					break;
 	    				}
     					// Owe this or more than this, take the stack.
+	    				item.setAmount(-1);
     					inventory.remove(item);
     					difference -= stackCount;
 	    				if (difference == 0) {
