@@ -4,7 +4,7 @@ version: 1.1.2
 
 description: Economy driven by inventory gold.
 author: flobi
-website: http://www.aerialheights.com/
+website: http://dev.bukkit.org/server-mods/goldismoney/
 
 database: false
 
