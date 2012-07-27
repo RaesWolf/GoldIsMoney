@@ -12,11 +12,19 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.TreeMap;
 
 import org.bukkit.GameMode;
 import org.bukkit.Server;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -40,8 +48,11 @@ public class GoldIsMoney extends JavaPlugin {
 	private static String namePlural = "gnugi";
 	private static String formatSingular = "%n gnugus";
 	private static String formatPlural = "%n gnugi";
+	private static String balanceMessage = "You have: %g";
+	private static Map<Long, String> currencyFamily = new TreeMap<Long, String>();
+	private static Map<Long, String> currencyFamilyReverse = new TreeMap<Long, String>(Collections.reverseOrder());
 	
-	private static boolean allowCreativeGold = false;
+	private static boolean allowCreative = false;
 
 	private static File dataFolder;
 	private static Plugin plugin;
@@ -56,18 +67,15 @@ public class GoldIsMoney extends JavaPlugin {
 		
 		server = getServer();
         server.getPluginManager().registerEvents(new Listener() {
-            @SuppressWarnings("unused")
-			@EventHandler
+            @EventHandler
             public void playerJoin(PlayerJoinEvent event) {
             	loadOfflineBalance(event.getPlayer());
             }
-            @SuppressWarnings("unused")
-			@EventHandler
+            @EventHandler
             public void playerQuit(PlayerQuitEvent event) {
             	saveOfflineBalance(event.getPlayer().getName());
             }
-            @SuppressWarnings("unused")
-			@EventHandler
+            @EventHandler
 			public void inventoryClickEvent(InventoryClickEvent event) {
             	final String playerName = event.getWhoClicked().getName();
             	getServer().getScheduler().scheduleAsyncDelayedTask(plugin, new Runnable() {
@@ -88,12 +96,31 @@ public class GoldIsMoney extends JavaPlugin {
             // Failed to submit the stats :-(
         }
         getLogger().info("GoldIsMoney has been enabled!");
-    }
-     
+
+        getCommand("goldismoney").setExecutor(this);
+        getCommand("balance").setExecutor(this);
+        getCommand("money").setExecutor(this);
+	}
+
     public void onDisable(){ 
     	getLogger().info("GoldIsMoney has been disabled.");
-    } 
+    }
     
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String commandLabel, String[] args) {
+        if (command.getName().equalsIgnoreCase("goldismoney")) {
+        	if (args.length < 1 || args[0].equalsIgnoreCase("reload")) return false;
+        } else if (command.getName().equalsIgnoreCase("money") || command.getName().equalsIgnoreCase("balance")) {
+        	if (sender instanceof Player) {
+        		Player player = (Player) sender;
+            	if (!hasPermission(player.getName())) return false;
+            	player.sendMessage(balanceMessage.replaceAll("%g", format(getBalance(player.getName()))));
+            	return true;
+        	}
+        }
+        return false;
+    }
+
     // Access
     public static long getBalance(String playerName) {
     	if (!hasPermission(playerName)) return 0;
@@ -211,219 +238,64 @@ public class GoldIsMoney extends JavaPlugin {
     	long difference = newBalance - oldBalance;
 		ItemStack[] items;
 		int stackCount;
+		long itemWorth;
+		String itemKey;
 		
+		items = inventory.getContents();
 		if (difference < 0) {
-			// This should make the math easier:
-			difference = 0 - difference;
+			difference = Math.abs(difference);
 			
-			items = inventory.getContents();
-	    	long nuggetCount = 0;
-	    	long ingotCount = 0;
-	    	long change = 0;
-	    	
-			for (ItemStack item : items) {
-				if (item != null) {
-					switch (item.getTypeId()) {
-					case 371: // Nugget
-						nuggetCount += item.getAmount();
-						break;
-					case 266: // Ingot
-						ingotCount += item.getAmount();
-						break;
+			for (Entry<Long, String> pair: currencyFamily.entrySet()) {
+				itemWorth = pair.getKey();
+				itemKey = pair.getValue();
+				plugin.getLogger().info("CurrencyMapEntry: " + pair.getValue() + " => " + pair.getKey().toString() + "");
+				
+				for (ItemStack item : items) {
+					if (isItem(itemKey, item)) {
+						stackCount = item.getAmount();
+	    				if (stackCount * itemWorth > difference) {
+	    					// This stack is more than enough to cover our debt:
+	    					int removedItems = (int) Math.ceil(difference / itemWorth);
+	    					item.setAmount((int) (stackCount - removedItems));
+	    					difference -= removedItems * itemWorth;
+	    					break;
+	    				}
+	    				if (difference <= 0) break;
+    					// Owe this or more than this, take the stack.
+	    				item.setAmount(0);
+    					difference -= stackCount * itemWorth;
+					}
+    				if (difference <= 0) break;
+				}
+				if (difference <= 0) break;
+			}
+			
+			// Just in case we overdrew, actually a high probability, give back change.
+			difference = Math.abs(difference);
+    	}
+		
+		if (difference > 0) {
+			for (Entry<Long, String> pair: currencyFamily.entrySet()) {
+				itemWorth = pair.getKey();
+				itemKey = pair.getValue();
+				for (ItemStack item : items) {
+					if (difference < itemWorth) break;
+					if (item != null && isItem(itemKey, item) && item.getAmount() < 64) {
+					stackCount = item.getAmount();
+					item.setAmount((int) Math.min(64, stackCount + Math.floor((double) difference / itemWorth)));
+					difference -= (item.getAmount() - stackCount) * itemWorth;
 					}
 				}
 			}
+		}
 			
-			int nuggetMod = (int) (9 - (difference - nuggetCount) % 9) % 9;
-			int ingotMod = (int) (9 - ((((difference + nuggetMod - 9) / 9) - ingotCount) % 9)) % 9;
-			
-			if (nuggetCount == 0) {
-				// There are no nugget stacks, calculate the mod as change.
-				change += nuggetMod;
-				difference += nuggetMod;
-				ingotMod += 8;
-				ingotMod %= 9;
-			} else {
-				// Remove nuggets first:
-	    		for (ItemStack item : items) {
-	    			if (item != null && item.getTypeId() == 371) {
-						stackCount = item.getAmount();
-	    				
-	    				if (stackCount > difference) {
-	    					// This stack is more than enough to cover our debt:
-	    					item.setAmount((int) (stackCount - difference));
-	    					difference = 0;
-	    					break;
-	    				}
-	    				if (stackCount == nuggetCount && nuggetMod > 0) {
-	    					// Last stack standing, leave the nuggetMod.
-	    					item.setAmount(nuggetMod);
-	    					nuggetCount -= stackCount - nuggetMod;
-	    					difference -= stackCount - nuggetMod;
-	    					break;
-	    				} else {
-	    					// Owe this or more than this, take the stack.
-	    					item.setAmount(-1);
-	    					inventory.remove(item);
-	    					nuggetCount -= stackCount;
-	    					difference -= stackCount;
-	    				}
-	    				if (difference == 0) {
-	    					break;
-	    				}
-	    			}
-	    		}
-			}
-    		if (difference > 0) {
-	    		// The difference is now in ingot measurement.
-	    		difference /= 9;
-
-				if (ingotCount == 0) {
-					// There are no ingot stacks, calculate the mod as change.
-					change += ingotMod * 9;
-					difference += ingotMod;
-				} else {
-					// Remove ingots second:
-		    		for (ItemStack item : items) {
-		    			if (item != null && item.getTypeId() == 266) {
-							stackCount = item.getAmount();
-		    				
-		    				if (stackCount > difference) {
-		    					// This stack is more than enough to cover our debt:
-		    					item.setAmount((int) (stackCount - difference));
-		    					difference = 0;
-		    					break;
-		    				}
-		    				if (stackCount == ingotCount && ingotMod > 0) {
-		    					// Last stack standing, leave the ingotMod.
-		    					item.setAmount(ingotMod);
-		    					ingotCount -= stackCount - ingotMod;
-		    					difference -= stackCount - ingotMod;
-		    					break;
-		    				} else {
-		    					// Owe this or more than this, take the stack.
-		    					item.setAmount(-1);
-		    					inventory.remove(item);
-		    					ingotCount -= stackCount;
-		    					difference -= stackCount;
-		    				}
-		    				if (difference == 0) {
-		    					break;
-		    				}
-		    			}
-		    		}
-				}
-    		}
-    		if (difference > 0) {
-	    		// The difference is now in block measurement.
-	    		difference /= 9;
-
-				// Remove blocks last:
-	    		for (ItemStack item : items) {
-	    			if (item != null && item.getTypeId() == 41) {
-						stackCount = item.getAmount();
-	    				
-	    				if (stackCount > difference) {
-	    					// This stack is more than enough to cover our debt:
-	    					item.setAmount((int) (stackCount - difference));
-	    					difference = 0;
-	    					break;
-	    				}
-    					// Owe this or more than this, take the stack.
-	    				item.setAmount(-1);
-    					inventory.remove(item);
-    					difference -= stackCount;
-	    				if (difference == 0) {
-	    					break;
-	    				}
-	    			}
-				}
-    		}
-    		
-    		difference = change;
-    	} 
-		if (difference > 0) {
-			items = inventory.getContents();
-			// Fill as many blocks as possible.
-    		if (difference > 80) {
-	    		for (ItemStack item : items) {
-	    			if (difference < 81) break;
-	    			if (item != null && item.getTypeId() == 41 && item.getAmount() < 64) {
-	    				stackCount = item.getAmount();
-	    				item.setAmount((int) Math.min(64, stackCount + Math.floor((double) difference / 81)));
-	    				difference -= (item.getAmount() - stackCount) * 81;
-	    			}
-	    		}
-    		}
-    		if (difference > 8) {
-    			// Fill as many ingots as possible.
-        		for (ItemStack item : items) {
-        			if (difference < 9) break;
-        			if (item != null && item.getTypeId() == 266 && item.getAmount() < 64) {
-        				stackCount = item.getAmount();
-        				item.setAmount((int) Math.min(64, stackCount + Math.floor((double) difference / 9)));
-        				difference -= (item.getAmount() - stackCount) * 9;
-        			}
-        		}
-        	}
-    		if (difference > 0) {
-    			// Fill as many nuggets as possible.
-        		for (ItemStack item : items) {
-        			if (difference < 1) break;
-        			if (item != null && item.getTypeId() == 371 && item.getAmount() < 64) {
-        				stackCount = item.getAmount();
-        				item.setAmount((int) Math.min(64, stackCount + difference));
-        				difference -= item.getAmount() - stackCount;
-        			}
-        		}
-        	}
-    		if (difference > 80) {
-    			// Fill as many blocks as possible.
-        		for (ItemStack item : items) {
-        			if (difference < 81) break;
-        			if (item == null) {
-        				// Got space for a stack of blocks.
-        				stackCount = (int) Math.min(64, Math.floor((double) difference / 81));
-        				inventory.addItem(new ItemStack(41, stackCount));
-        				difference -= stackCount * 81;
-        			}
-        		}
-        	}
-    		// Gotta refresh this because there are spots that were null that aren't anymore.
-			items = inventory.getContents();
-    		if (difference > 8) {
-    			// Fill as many ingots as possible.
-        		for (ItemStack item : items) {
-        			if (difference < 9) break;
-        			if (item == null) {
-        				// Got space for a stack of ingots.
-        				stackCount = (int) Math.min(64, Math.floor((double) difference / 9));
-        				inventory.addItem(new ItemStack(266, stackCount));
-        				difference -= stackCount * 9;
-        			}
-        		}
-        	}
-    		// Gotta refresh this because there are spots that were null that aren't anymore.
-			items = inventory.getContents();
-    		if (difference > 0) {
-    			// Fill as many nuggets as possible.
-        		for (ItemStack item : items) {
-        			if (difference < 0) break;
-        			if (item == null) {
-        				// Got space for a stack of nuggets.
-        				stackCount = (int) Math.min(64, Math.floor((double) difference));
-        				inventory.addItem(new ItemStack(371, stackCount));
-        				difference -= stackCount;
-        			}
-        		}
-        	}
-    	}
-		
 		if (difference > 0) {
 			// They didn't have enough space.
 			SystemOwesPlayer.put(playerName, difference);
     		saveObject(SystemOwesPlayer, "SystemOwesPlayer.ser");
 		}
+		
+		// TODO: remove stacks with amount = -1
 	}
 
 	private void saveOfflineBalance(String playerName) {
@@ -450,25 +322,27 @@ public class GoldIsMoney extends JavaPlugin {
 
 
 		for (ItemStack item : items) {
-			if (item != null) {
-				
-				switch (item.getTypeId()) {
-				case 371: // Nugget
-					balance += item.getAmount();
-					break;
-				case 266: // Ingot
-					balance += item.getAmount() * 9;
-					break;
-				case 41: // Block
-					balance += item.getAmount() * 81;
-					break;
-			}
-			}
+			balance += getStackValue(item);
 		}
     	
     	return balance;
     }
     
+	private static long getStackValue(ItemStack item) {
+		if (item == null) return 0;
+		for (Entry<Long, String> pair: currencyFamily.entrySet()) {
+			if (isItem(pair.getValue(), item)) {
+				return item.getAmount() * pair.getKey();
+			}
+		}
+		return 0;
+	}
+	
+	private static boolean isItem(String itemKey, ItemStack item) {
+		if (item == null) return false;
+		return itemKey.equalsIgnoreCase(Integer.toString(item.getTypeId())) || itemKey.equalsIgnoreCase(item.getTypeId() + ";" + item.getDurability());
+	}
+
 	private static void saveObject(Object arraylist, String filename) {
     	File saveFile = new File(dataFolder, filename);
     	
@@ -482,7 +356,7 @@ public class GoldIsMoney extends JavaPlugin {
 				output.writeObject(arraylist);
 			}
 	  	    catch(IOException ex){
-	  	    	server.getConsoleSender().sendMessage("Can't save file, " + filename);
+	  	    	plugin.getLogger().severe("Can't save file, " + filename);
 	    		return;
 	  	    }
 			finally {
@@ -490,7 +364,7 @@ public class GoldIsMoney extends JavaPlugin {
 			}
   	    }  
   	    catch(IOException ex){
-  	    	server.getConsoleSender().sendMessage("Can't save file, " + filename);
+  	    	plugin.getLogger().severe("Can't save file, " + filename);
     		return;
   	    }
 	}
@@ -520,6 +394,7 @@ public class GoldIsMoney extends JavaPlugin {
 		InputStream defConfigStream = null;
 		YamlConfiguration defConfig = null;
 		YamlConfiguration config = null;
+		String currencyFamiliyName = ""; 
 		
 		defConfigStream = plugin.getResource("config.yml");
     	configFile = new File(dataFolder, "config.yml");
@@ -538,11 +413,12 @@ public class GoldIsMoney extends JavaPlugin {
 		namePlural = config.getString("name-plural");
 		formatSingular = config.getString("format-singular");
 		formatPlural = config.getString("format-plural");
-		allowCreativeGold = config.getBoolean("allow-creative-gold");
+		allowCreative = config.getBoolean("allow-creative");
+		currencyFamiliyName = config.getString("currency-family");
 
 		// Update file in resource folder.
 		FileConfiguration cleanConfig = new YamlConfiguration();
-		Map<String, Object> configValues = config.getDefaults().getValues(true);
+		Map<String, Object> configValues = config.getDefaults().getValues(false);
 		for (Map.Entry<String, Object> configEntry : configValues.entrySet()) {
 			cleanConfig.set(configEntry.getKey(), config.get(configEntry.getKey()));
 		}
@@ -550,14 +426,110 @@ public class GoldIsMoney extends JavaPlugin {
 		try {
 			cleanConfig.save(configFile);
 		} catch(IOException ex) {
-			server.getLogger().severe("Cannot save config.yml");
+			plugin.getLogger().severe("Cannot save config.yml");
 		}
+		
+		// Process currency family:
+		currencyFamily.clear();
+		if (currencyFamiliyName.equalsIgnoreCase("emerald")) {
+			plugin.getLogger().info("Using emeralds for money.");
+			currencyFamily.put(1L, "388");
+			currencyFamily.put(9L, "133");
+		} else if (currencyFamiliyName.equalsIgnoreCase("diamond")) {
+			plugin.getLogger().info("Using diamonds for money.");
+			currencyFamily.put(1L, "264");
+			currencyFamily.put(9L, "57");
+		} else if (currencyFamiliyName.equalsIgnoreCase("iron")) {
+			plugin.getLogger().info("Using iron for money.");
+			currencyFamily.put(1L, "265");
+			currencyFamily.put(9L, "42");
+		} else if (currencyFamiliyName.equalsIgnoreCase("lapis")) {
+			plugin.getLogger().info("Using lapis lazuli for money.");
+			currencyFamily.put(1L, "351;4");
+			currencyFamily.put(9L, "16");
+		} else if (currencyFamiliyName.equalsIgnoreCase("snow")) {
+			plugin.getLogger().info("Using snow for money.");
+			currencyFamily.put(1L, "332");
+			currencyFamily.put(4L, "80");
+		} else if (currencyFamiliyName.equalsIgnoreCase("clay")) {
+			plugin.getLogger().info("Using clay for money.");
+			currencyFamily.put(1L, "337");
+			currencyFamily.put(4L, "82");
+		} else if (currencyFamiliyName.equalsIgnoreCase("custom")) {
+			boolean hasBaseValue = false;
+			
+			ConfigurationSection customCurrency = config.getConfigurationSection("custom-currency");
+			Set<String> customCurrencyBlocks = customCurrency.getKeys(false);
+			
+			if (customCurrencyBlocks != null) {
+				for (String customCurrencyBlock : customCurrencyBlocks) {
+					long blockWorth = customCurrency.getLong(customCurrencyBlock);
+					if (!isValidItemIdFormat(customCurrencyBlock)) {
+						plugin.getLogger().warning("Ignoring invalid custom deomination, '" + customCurrencyBlock + "': " + blockWorth + ".");
+					} else if (currencyFamily.containsKey(blockWorth)) {
+						plugin.getLogger().warning("Ignoring duplicate custom valuation, '" + customCurrencyBlock + "': " + blockWorth + ".");
+					} else {
+						currencyFamily.put(blockWorth, customCurrencyBlock);
+						if (blockWorth == 1L) hasBaseValue = true;
+					}
+				}
+				
+				if (currencyFamily.size() == 0) {
+					plugin.getLogger().warning("No valid items in custom currency.  Using gold for money.");
+				} else if (!hasBaseValue) {
+					currencyFamily.clear();
+					plugin.getLogger().warning("Custom currency requires base value.  Using gold for money.");
+				} else {
+					plugin.getLogger().info("Using custom item list for money.");
+				}
+			}
+		} else if (currencyFamiliyName.equalsIgnoreCase("gold")) {
+			plugin.getLogger().info("Using gold for money.");
+		} else {
+			plugin.getLogger().warning("Unknown currency family, '" + currencyFamiliyName + "'.  Using gold for money.");
+		}
+		
+		if (currencyFamily.isEmpty()) {
+			currencyFamily.put(1L, "371");
+			currencyFamily.put(9L, "266");
+			currencyFamily.put(81L, "41");
+		}
+		currencyFamilyReverse.clear();
+		currencyFamilyReverse.putAll(currencyFamily);
+		
+		for (Entry<Long, String> pair: currencyFamily.entrySet()) {
+			plugin.getLogger().info("CurrencyMapEntry: " + pair.getValue() + " => " + pair.getKey().toString() + "");
+		}
+		for (Entry<Long, String> pair: currencyFamilyReverse.entrySet()) {
+			plugin.getLogger().info("CurrencyMapEntryRev: " + pair.getValue() + " => " + pair.getKey().toString() + "");
+		}
+    }
+    
+    private static boolean isValidItemIdFormat(String itemId) {
+    	if (itemId.contains(";")) {
+    		String[] itemIdParts = itemId.split(";");
+    		if (itemIdParts.length != 2) return false;
+    		try {
+    			Integer.parseInt(itemIdParts[0]);
+    			Integer.parseInt(itemIdParts[1]);
+    			return true;
+    		} catch (NumberFormatException e) {
+				return false;
+			}
+    	} else {
+    		try {
+    			Integer.parseInt(itemId);
+    			return true;
+    		} catch (NumberFormatException e) {
+				return false;
+			}
+    	}
     }
 
     private static boolean hasPermission(String playerName) {
     	Player player = server.getPlayer(playerName);
     	if (player == null) return OfflineBalance.containsKey(playerName);
-    	if (player.getGameMode() == GameMode.CREATIVE && !allowCreativeGold) return false;
+    	if (player.getGameMode() == GameMode.CREATIVE && !allowCreative) return false;
     	return player.hasPermission("goldismoney.use");
     	
     }

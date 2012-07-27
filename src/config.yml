@@ -2,4 +2,7 @@ name-singular: gnugus
 name-plural: gnugi
 format-singular: '%n gnugus'
 format-plural: '%n gnugi'
-allow-creative-gold: false
+allow-creative: false
+currency-family: gold
+text-balance: 'You have: %g'
+custom-currency: {}
