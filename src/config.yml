@@ -4,6 +4,6 @@ format-singular: '%n gnugus'
 format-plural: '%n gnugi'
 allow-creative: false
 currency-family: gold
-text-balance: '&You have: %g'
+text-balance: '&3You have: &6%g gnugi'
 text-balance-perms-fail: '&6You cannot use item currency at this time.'
 custom-currency: {}

@@ -48,7 +48,7 @@ public class GoldIsMoney extends JavaPlugin {
 	private static String namePlural = "gnugi";
 	private static String formatSingular = "%n gnugus";
 	private static String formatPlural = "%n gnugi";
-	private static String balanceMessage = "You have: %g";
+	private static String balanceMessage = "&3You have: &6%g gnugi";
 	private static String balanceMessagePermsFail = "&6You cannot use item currency at this time.";
 	private static Map<Long, String> currencyFamily = new TreeMap<Long, String>();
 	private static Map<Long, String> currencyFamilyReverse = new TreeMap<Long, String>(Collections.reverseOrder());
@@ -239,6 +239,8 @@ public class GoldIsMoney extends JavaPlugin {
 
     	if (newBalance == oldBalance) return;
     	
+//    	player.sendMessage("Balance change from " + oldBalance + " to " + newBalance);
+    	
     	long difference = newBalance - oldBalance;
 		ItemStack[] items;
 		int stackCount;
@@ -250,7 +252,7 @@ public class GoldIsMoney extends JavaPlugin {
 		if (difference < 0) {
 			difference = Math.abs(difference);
 			
-			player.sendMessage("Withdrawing " + difference);
+//			player.sendMessage("Withdrawing " + difference);
 			
 			for (Entry<Long, String> pair: currencyFamily.entrySet()) {
 				if (difference <= 0) break;
@@ -268,17 +270,18 @@ public class GoldIsMoney extends JavaPlugin {
 	    					int removedItems = (int) Math.ceil((double) difference / (double) itemWorth);
 	    					if (stackCount - removedItems <= 0) {
 		    					item.setAmount(-1);
-		    					player.sendMessage("Removed " + itemKey + " stack (overflow) of " + stackCount + " worth " + (stackCount * itemWorth));
+//		    					player.sendMessage("Removed " + itemKey + " stack (overflow) of " + stackCount + " worth " + (stackCount * itemWorth));
 	    					} else {
 		    					item.setAmount(stackCount - removedItems);
-		    					player.sendMessage("Removed " + removedItems + " worth " + (removedItems * itemWorth) + " from " + itemKey + " stack of " + stackCount);
+//		    					player.sendMessage("Removed " + removedItems + " worth " + (removedItems * itemWorth) + " from " + itemKey + " stack of " + stackCount);
+//		    					player.sendMessage("Stack now contains: " + item.getAmount());
 	    					}
 	    					difference -= removedItems * itemWorth;
 	    					break;
 	    				}
     					// Owe this or more than this, take the stack.
 	    				item.setAmount(-1);
-	    				player.sendMessage("Removed " + itemKey + " stack of " + stackCount + " worth " + (stackCount * itemWorth));
+//	    				player.sendMessage("Removed " + itemKey + " stack of " + stackCount + " worth " + (stackCount * itemWorth));
     					difference -= stackCount * itemWorth;
 					}
 				}
@@ -286,10 +289,10 @@ public class GoldIsMoney extends JavaPlugin {
 			
 			// Just in case we overdrew, actually a high probability, give back change.
 			difference = 0 - difference;
-			player.sendMessage("Change is " + difference);
+//			player.sendMessage("Change is " + difference);
     	}
 		
-		
+//		player.sendMessage("Depositing " + difference);
 		for (Entry<Long, String> pair: currencyFamilyReverse.entrySet()) {
 			itemWorth = pair.getKey();
 			if (difference < itemWorth) continue;
@@ -303,8 +306,9 @@ public class GoldIsMoney extends JavaPlugin {
 				if (item != null && isItem(itemKey, item) && item.getAmount() < stackMax) {
 					stackCount = item.getAmount();
 					if (stackCount < 0) stackCount = 0;
-					item.setAmount((int) Math.min(stackMax, stackCount + Math.floor((double) difference / (double) itemWorth)));
+					item.setAmount((int) Math.min(stackMax, stackCount + (int) Math.floor((double) difference / (double) itemWorth)));
 					difference -= (item.getAmount() - stackCount) * itemWorth;
+//					player.sendMessage("Added " + (item.getAmount() - stackCount) + " worth " + ((item.getAmount() - stackCount) * itemWorth) + " to " + itemKey + " stack of " + stackCount);
 				}
 			}
 		}
@@ -327,9 +331,10 @@ public class GoldIsMoney extends JavaPlugin {
 				if (difference < itemWorth) break;
 
 				if (item == null) {
-					stackCount = (int) Math.min(stackMax, Math.floor((double) difference / (double) itemWorth));
+					stackCount = (int) Math.min(stackMax, (int) Math.floor((double) difference / (double) itemWorth));
 					inventory.addItem(getItemStack(itemKey, stackCount));
 					difference -= stackCount * itemWorth;
+//					player.sendMessage("Added " + itemKey + " stack of " + stackCount + " worth " + (stackCount * itemWorth));
 				}
 			}
 		}
