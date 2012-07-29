@@ -14,12 +14,12 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 
+import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Server;
 import org.bukkit.command.Command;
@@ -49,6 +49,7 @@ public class GoldIsMoney extends JavaPlugin {
 	private static String formatSingular = "%n gnugus";
 	private static String formatPlural = "%n gnugi";
 	private static String balanceMessage = "You have: %g";
+	private static String balanceMessagePermsFail = "&6You cannot use item currency at this time.";
 	private static Map<Long, String> currencyFamily = new TreeMap<Long, String>();
 	private static Map<Long, String> currencyFamilyReverse = new TreeMap<Long, String>(Collections.reverseOrder());
 	
@@ -113,8 +114,11 @@ public class GoldIsMoney extends JavaPlugin {
         } else if (command.getName().equalsIgnoreCase("money") || command.getName().equalsIgnoreCase("balance")) {
         	if (sender instanceof Player) {
         		Player player = (Player) sender;
-            	if (!hasPermission(player.getName())) return false;
-            	player.sendMessage(balanceMessage.replaceAll("%g", format(getBalance(player.getName()))));
+            	if (!hasPermission(player.getName())) {
+                	player.sendMessage(ChatColor.translateAlternateColorCodes('&', balanceMessagePermsFail.replaceAll("%g", format(getBalance(player.getName())))));
+            		return false;
+            	}
+            	player.sendMessage(ChatColor.translateAlternateColorCodes('&', balanceMessage.replaceAll("%g", format(getBalance(player.getName())))));
             	return true;
         	}
         }
@@ -238,6 +242,7 @@ public class GoldIsMoney extends JavaPlugin {
     	long difference = newBalance - oldBalance;
 		ItemStack[] items;
 		int stackCount;
+		int stackMax;
 		long itemWorth;
 		String itemKey;
 		
@@ -245,57 +250,96 @@ public class GoldIsMoney extends JavaPlugin {
 		if (difference < 0) {
 			difference = Math.abs(difference);
 			
+			player.sendMessage("Withdrawing " + difference);
+			
 			for (Entry<Long, String> pair: currencyFamily.entrySet()) {
+				if (difference <= 0) break;
+
 				itemWorth = pair.getKey();
 				itemKey = pair.getValue();
-				plugin.getLogger().info("CurrencyMapEntry: " + pair.getValue() + " => " + pair.getKey().toString() + "");
 				
 				for (ItemStack item : items) {
-					if (isItem(itemKey, item)) {
+    				if (difference <= 0) break;
+
+    				if (isItem(itemKey, item)) {
 						stackCount = item.getAmount();
 	    				if (stackCount * itemWorth > difference) {
 	    					// This stack is more than enough to cover our debt:
-	    					int removedItems = (int) Math.ceil(difference / itemWorth);
-	    					item.setAmount((int) (stackCount - removedItems));
+	    					int removedItems = (int) Math.ceil((double) difference / (double) itemWorth);
+	    					if (stackCount - removedItems <= 0) {
+		    					item.setAmount(-1);
+		    					player.sendMessage("Removed " + itemKey + " stack (overflow) of " + stackCount + " worth " + (stackCount * itemWorth));
+	    					} else {
+		    					item.setAmount(stackCount - removedItems);
+		    					player.sendMessage("Removed " + removedItems + " worth " + (removedItems * itemWorth) + " from " + itemKey + " stack of " + stackCount);
+	    					}
 	    					difference -= removedItems * itemWorth;
 	    					break;
 	    				}
-	    				if (difference <= 0) break;
     					// Owe this or more than this, take the stack.
-	    				item.setAmount(0);
+	    				item.setAmount(-1);
+	    				player.sendMessage("Removed " + itemKey + " stack of " + stackCount + " worth " + (stackCount * itemWorth));
     					difference -= stackCount * itemWorth;
 					}
-    				if (difference <= 0) break;
 				}
-				if (difference <= 0) break;
 			}
 			
 			// Just in case we overdrew, actually a high probability, give back change.
-			difference = Math.abs(difference);
+			difference = 0 - difference;
+			player.sendMessage("Change is " + difference);
     	}
 		
-		if (difference > 0) {
-			for (Entry<Long, String> pair: currencyFamily.entrySet()) {
-				itemWorth = pair.getKey();
-				itemKey = pair.getValue();
-				for (ItemStack item : items) {
-					if (difference < itemWorth) break;
-					if (item != null && isItem(itemKey, item) && item.getAmount() < 64) {
+		
+		for (Entry<Long, String> pair: currencyFamilyReverse.entrySet()) {
+			itemWorth = pair.getKey();
+			if (difference < itemWorth) continue;
+
+			itemKey = pair.getValue();
+			stackMax = maxStackSize(itemKey);
+
+			for (ItemStack item : items) {
+				if (difference < itemWorth) break;
+
+				if (item != null && isItem(itemKey, item) && item.getAmount() < stackMax) {
 					stackCount = item.getAmount();
-					item.setAmount((int) Math.min(64, stackCount + Math.floor((double) difference / itemWorth)));
+					if (stackCount < 0) stackCount = 0;
+					item.setAmount((int) Math.min(stackMax, stackCount + Math.floor((double) difference / (double) itemWorth)));
 					difference -= (item.getAmount() - stackCount) * itemWorth;
-					}
 				}
 			}
 		}
-			
+		
+		// Remove any empty stacks.
+		for (ItemStack item : items) {
+			if (item != null && item.getAmount() <= 0) inventory.remove(item);
+		}
+		
+		for (Entry<Long, String> pair: currencyFamilyReverse.entrySet()) {
+			itemWorth = pair.getKey();
+			if (difference < itemWorth) continue;
+
+			itemKey = pair.getValue();
+			stackMax = maxStackSize(itemKey);
+
+			// Refresh inventory contents.
+			items = inventory.getContents();
+			for (ItemStack item : items) {
+				if (difference < itemWorth) break;
+
+				if (item == null) {
+					stackCount = (int) Math.min(stackMax, Math.floor((double) difference / (double) itemWorth));
+					inventory.addItem(getItemStack(itemKey, stackCount));
+					difference -= stackCount * itemWorth;
+				}
+			}
+		}
+		
 		if (difference > 0) {
 			// They didn't have enough space.
 			SystemOwesPlayer.put(playerName, difference);
     		saveObject(SystemOwesPlayer, "SystemOwesPlayer.ser");
 		}
 		
-		// TODO: remove stacks with amount = -1
 	}
 
 	private void saveOfflineBalance(String playerName) {
@@ -341,6 +385,26 @@ public class GoldIsMoney extends JavaPlugin {
 	private static boolean isItem(String itemKey, ItemStack item) {
 		if (item == null) return false;
 		return itemKey.equalsIgnoreCase(Integer.toString(item.getTypeId())) || itemKey.equalsIgnoreCase(item.getTypeId() + ";" + item.getDurability());
+	}
+
+	private static ItemStack getItemStack(String itemKey, int quantity) {
+		int typeId = 0;
+		short damage = 0;
+		String[] keyParts = itemKey.split(";");
+		typeId = Integer.parseInt(keyParts[0]);
+		if (keyParts.length > 1) {
+			damage = Short.parseShort(keyParts[1]);
+		}
+		ItemStack item = new ItemStack(typeId, quantity, damage);
+		return item;
+	}
+
+	private static int maxStackSize(String itemKey) {
+		int typeId;
+		String[] keyParts = itemKey.split(";");
+		typeId = Integer.parseInt(keyParts[0]);
+		ItemStack item = new ItemStack(typeId);
+		return item.getMaxStackSize();
 	}
 
 	private static void saveObject(Object arraylist, String filename) {
@@ -496,13 +560,6 @@ public class GoldIsMoney extends JavaPlugin {
 		}
 		currencyFamilyReverse.clear();
 		currencyFamilyReverse.putAll(currencyFamily);
-		
-		for (Entry<Long, String> pair: currencyFamily.entrySet()) {
-			plugin.getLogger().info("CurrencyMapEntry: " + pair.getValue() + " => " + pair.getKey().toString() + "");
-		}
-		for (Entry<Long, String> pair: currencyFamilyReverse.entrySet()) {
-			plugin.getLogger().info("CurrencyMapEntryRev: " + pair.getValue() + " => " + pair.getKey().toString() + "");
-		}
     }
     
     private static boolean isValidItemIdFormat(String itemId) {
