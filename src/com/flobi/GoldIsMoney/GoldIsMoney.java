@@ -48,7 +48,7 @@ public class GoldIsMoney extends JavaPlugin {
 	private static String namePlural = "gnugi";
 	private static String formatSingular = "%n gnugus";
 	private static String formatPlural = "%n gnugi";
-	private static String balanceMessage = "&3You have: &6%g gnugi";
+	private static String balanceMessage = "&3You have &6%g&3.";
 	private static String balanceMessagePermsFail = "&6You cannot use item currency at this time.";
 	private static Map<Long, String> currencyFamily = new TreeMap<Long, String>();
 	private static Map<Long, String> currencyFamilyReverse = new TreeMap<Long, String>(Collections.reverseOrder());
@@ -483,6 +483,8 @@ public class GoldIsMoney extends JavaPlugin {
 		formatSingular = config.getString("format-singular");
 		formatPlural = config.getString("format-plural");
 		allowCreative = config.getBoolean("allow-creative");
+		balanceMessage = config.getString("text-balance");
+		balanceMessagePermsFail = config.getString("text-balance-perms-fail");
 		currencyFamiliyName = config.getString("currency-family");
 
 		// Update file in resource folder.
