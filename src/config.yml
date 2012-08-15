@@ -6,4 +6,7 @@ allow-creative: false
 currency-family: gold
 text-balance: '&3You have &6%g&3.'
 text-balance-perms-fail: '&6You cannot use item currency at this time.'
+allow-fake-players: false
+allow-banks: false
+fractional-digits: 0
 custom-currency: {}
