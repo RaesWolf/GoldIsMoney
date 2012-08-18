@@ -26,6 +26,7 @@ public class PlayerAccount {
 			return false;
 		} else {
 			syncInventory();
+			GiMUtility.plugin.getServer().getLogger().info("Deposit: New balance is " + GiMMoney.format(balance));
 			return true;
 		}
 	}
@@ -34,6 +35,7 @@ public class PlayerAccount {
 		if (!has(amount)) return false;
 		balance -= amount;
 		syncInventory();
+		GiMUtility.plugin.getServer().getLogger().info("Withdraw: New balance is " + GiMMoney.format(balance));
 		return true;
 	}
 

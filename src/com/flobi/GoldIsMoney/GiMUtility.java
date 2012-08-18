@@ -16,14 +16,12 @@ public class GiMUtility {
 	public static GoldIsMoney plugin;
     public static YamlConfiguration config;
     
-	public static Map<String, PlayerAccount> loadMapStringPlayerAccount(
-			String string) {
-		return null;
+	public static Map<String, PlayerAccount> loadMapStringPlayerAccount(String string) {
+		return new HashMap<String, PlayerAccount>();
 	}
 
-	public static Map<String, BankAccount> loadMapStringBankAccount(
-			String string) {
-		return null;
+	public static Map<String, BankAccount> loadMapStringBankAccount(String string) {
+		return new HashMap<String, BankAccount>();
 	}
 
 	@SuppressWarnings({ "unchecked", "finally" })
@@ -59,7 +57,6 @@ public class GiMUtility {
 		File configFile = null;
 		InputStream defConfigStream = null;
 		YamlConfiguration defConfig = null;
-		YamlConfiguration config = null;
 		
 		defConfigStream = plugin.getResource("config.yml");
     	configFile = new File(dataFolder, "config.yml");

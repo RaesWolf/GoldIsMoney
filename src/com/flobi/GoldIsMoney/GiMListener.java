@@ -18,7 +18,7 @@ public class GiMListener implements Listener {
     	if (GoldIsMoney.hasAccount(playerName)) {
     		GoldIsMoney.getPlayerAccount(playerName).syncInventory();
     	} else {
-    		GoldIsMoney.getPlayerAccount(playerName).initialize();
+    		GoldIsMoney.createPlayerAccount(playerName);
     	}
     }
 
@@ -30,7 +30,7 @@ public class GiMListener implements Listener {
  		    	if (GoldIsMoney.hasAccount(playerName)) {
  		    		GoldIsMoney.getPlayerAccount(playerName).syncInventory();
  		    	} else {
- 		    		GoldIsMoney.getPlayerAccount(playerName).initialize();
+ 		    		GoldIsMoney.createPlayerAccount(playerName);
  		    	}
 		   }
 		}, 1L);

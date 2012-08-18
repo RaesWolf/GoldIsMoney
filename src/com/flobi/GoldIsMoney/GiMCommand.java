@@ -5,6 +5,8 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import org.bukkit.ChatColor;
+
 public class GiMCommand implements CommandExecutor {
 	private GoldIsMoney plugin;
 	
@@ -21,13 +23,12 @@ public class GiMCommand implements CommandExecutor {
         	if (args.length < 1 || args[0].equalsIgnoreCase("reload")) return false;
         } else if (command.getName().equalsIgnoreCase("money") || command.getName().equalsIgnoreCase("balance")) {
         	if (sender instanceof Player) {
-//        		Player player = (Player) sender;
+        		Player player = (Player) sender;
 //            	if (!GiMUtility.hasPermission(player.getName())) {
 //               	player.sendMessage(ChatColor.translateAlternateColorCodes('&', "".replaceAll("%g", formatLong(getBalanceLong(player.getName())))));
-            		return false;
 //            	}
-///            	player.sendMessage(ChatColor.translateAlternateColorCodes('&', plugin.balanceMessage.replaceAll("%g", formatLong(getBalanceLong(player.getName())))));
-//            	return true;
+            	player.sendMessage(ChatColor.translateAlternateColorCodes('&', GiMUtility.config.getString("text-balance").replaceAll("%g", GoldIsMoney.format(GoldIsMoney.getBalance(player.getName())))));
+            	return true;
         	}
         }
         return false;
