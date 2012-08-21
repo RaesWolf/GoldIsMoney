@@ -1,14 +1,20 @@
 package com.flobi.GoldIsMoney;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
-public class BankAccount {
+public class BankAccount implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -8193482747890132674L;
 	private String ownerName; 
 	private long balance;
 	private static ArrayList<String> members = new ArrayList<String>();
 	
 	public BankAccount(String ownerName) {
 		this.ownerName = ownerName;
+		GiMUtility.saveBankAccountFile();
 	}
 
 	public long getBalance() {
@@ -30,6 +36,7 @@ public class BankAccount {
 	public boolean withdraw(long amount) {
 		if (!has(amount)) return false;
 		balance -= amount;
+		GiMUtility.saveBankAccountFile();
 		return true;
 	}
 
@@ -41,6 +48,7 @@ public class BankAccount {
 			balance = oldBalance;
 			return false;
 		} else {
+			GiMUtility.saveBankAccountFile();
 			return true;
 		}
 	}
@@ -55,12 +63,15 @@ public class BankAccount {
 	
 	public boolean addMember(String playerName) {
 		members.add(playerName);
+		GiMUtility.saveBankAccountFile();
 		return isMember(playerName);
 	}
 	
 	public boolean removeMember(String playerName) {
 		if (!isMember(playerName)) return true;
 		members.remove(playerName);
+		GiMUtility.saveBankAccountFile();
 		return !isMember(playerName);
 	}
+
 }

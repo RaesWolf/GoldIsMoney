@@ -5,17 +5,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class GoldIsMoney extends JavaPlugin {
 	
 	// Accounts
-	private static Map<String, PlayerAccount> playerAccounts = new HashMap<String, PlayerAccount>();
-	private static Map<String, BankAccount> bankAccounts = new HashMap<String, BankAccount>();
-	
-	// Currency Definitions:
-//	private static Map<Long, String> currencyFamily = new TreeMap<Long, String>();
-//	private static Map<Long, String> currencyFamilyReverse = new TreeMap<Long, String>(Collections.reverseOrder());
+	public static Map<String, PlayerAccount> playerAccounts = new HashMap<String, PlayerAccount>();
+	public static Map<String, BankAccount> bankAccounts = new HashMap<String, BankAccount>();
 	
 	// Setup
 	public void onEnable(){
@@ -88,7 +85,7 @@ public class GoldIsMoney extends JavaPlugin {
     }
     public static boolean createPlayerAccount(String playerName) {
     	if (hasAccount(playerName)) return true;
-    	if (!GiMUtility.config.getBoolean("allow-fake-players")) return false;
+    	if (!GiMUtility.config.getBoolean("allow-fake-players") && GiMUtility.plugin.getServer().getPlayer(playerName) == null) return false;
     	
     	playerAccounts.put(playerName, new PlayerAccount(playerName));
     	return hasAccount(playerName);
@@ -103,7 +100,7 @@ public class GoldIsMoney extends JavaPlugin {
     }
     public static boolean createBank(String bankName, String playerName) {
     	if (bankExists(bankName)) return true;
-    	bankAccounts.put(bankName, new BankAccount(playerName));
+    	GiMUtility.saveBankAccountFile();
     	
     	return bankExists(bankName);
     }
@@ -116,7 +113,7 @@ public class GoldIsMoney extends JavaPlugin {
     	
     	getBankAccount(bankName).dispose();
     	bankAccounts.remove(bankName);
-    	
+    	GiMUtility.saveBankAccountFile();
     	return !bankExists(bankName);
     }
     public static boolean bankHas(String bankName, double amount) {
