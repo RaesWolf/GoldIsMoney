@@ -18,11 +18,12 @@ public class PlayerAccount implements Serializable {
 	
 	public PlayerAccount(String playerName) {
 		this.playerName = playerName;
-		GiMUtility.plugin.getLogger().info("Created player account: " + playerName);
+//		GiMUtility.plugin.getLogger().info("Created player account: " + playerName);
 		GiMUtility.savePlayerAccountFile();
 	}
 
 	public long getBalance() {
+		syncInventory();
 		return balance;
 	}
 	
@@ -39,7 +40,7 @@ public class PlayerAccount implements Serializable {
 			return false;
 		} else {
 			syncInventory();
-			GiMUtility.plugin.getServer().getLogger().info("Deposit: New balance is " + GiMMoney.format(balance));
+//			GiMUtility.plugin.getServer().getLogger().info("Deposit: New balance is " + GiMMoney.format(balance));
 			GiMUtility.savePlayerAccountFile();
 			return true;
 		}
@@ -49,7 +50,7 @@ public class PlayerAccount implements Serializable {
 		if (!has(amount)) return false;
 		balance -= amount;
 		syncInventory();
-		GiMUtility.plugin.getServer().getLogger().info("Withdraw: New balance is " + GiMMoney.format(balance));
+//		GiMUtility.plugin.getServer().getLogger().info("Withdraw: New balance is " + GiMMoney.format(balance));
 		GiMUtility.savePlayerAccountFile();
 		return true;
 	}

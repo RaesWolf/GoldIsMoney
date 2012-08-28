@@ -93,15 +93,9 @@ public class GoldIsMoney extends JavaPlugin {
     public static boolean hasBankSupport() {
     	return GiMUtility.config.getBoolean("allow-banks");
     }
-    public static boolean bankExists(String bankName) {
-    	// NOTE: Do not call getBankAccount in here, it would cause an infinite loop.
-    	if (!hasBankSupport()) return false;
-    	return bankAccounts.containsKey(bankName);
-    }
     public static boolean createBank(String bankName, String playerName) {
     	if (bankExists(bankName)) return true;
-    	GiMUtility.saveBankAccountFile();
-    	
+    	bankAccounts.put(bankName, new BankAccount(bankName));
     	return bankExists(bankName);
     }
     public static double bankBalance(String bankName) {
@@ -146,6 +140,11 @@ public class GoldIsMoney extends JavaPlugin {
     }
     
     // Potential new Vault supported methods:
+    public static boolean bankExists(String bankName) {
+    	// NOTE: Do not call getBankAccount in here, it would cause an infinite loop.
+    	if (!hasBankSupport()) return false;
+    	return bankAccounts.containsKey(bankName);
+    }
     public static boolean addBankMember(String bankName, String playerName) {
     	if (!bankExists(bankName)) return false;
     	return getBankAccount(bankName).addMember(playerName);

@@ -6,7 +6,11 @@ allow-creative: false
 currency-family: gold
 text-balance: '&3You have &6%g&3.'
 text-balance-perms-fail: '&6You cannot use item currency at this time.'
+text-reloaded: '&3GoldIsMoney has reloaded.'
+text-reloaded-perms-fail: '&6You do not have permission to reload GoldIsMoney.'
 allow-fake-players: false
 allow-banks: false
 fractional-digits: 0
 custom-currency: {}
+allow-fake-players: false
+allow-banks: false

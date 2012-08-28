@@ -1,6 +1,6 @@
 name: GoldIsMoney
 main: com.flobi.GoldIsMoney.GoldIsMoney
-version: 2.0.0
+version: 2-beta.0.0
 
 description: Economy driven by inventory gold.
 author: flobi
@@ -13,6 +13,7 @@ commands:
     description: General GoldIsMoney admin interface. 
     usage: |
            /<command> reload - Reload GoldIsMoney config.
+           /<command> test - Tests GoldIsMoney config.
   money:
     description: Display worth of current inventory. 
     usage: |

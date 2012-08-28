@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 public class GiMUtility {
@@ -134,6 +135,20 @@ public class GiMUtility {
 	    	config.setDefaults(defConfig);
 	    }
 	    
+	    
+		// Update file in resource folder.
+		FileConfiguration cleanConfig = new YamlConfiguration();
+		Map<String, Object> configValues = config.getDefaults().getValues(false);
+		for (Map.Entry<String, Object> configEntry : configValues.entrySet()) {
+			cleanConfig.set(configEntry.getKey(), config.get(configEntry.getKey()));
+		}
+
+		try {
+		cleanConfig.save(configFile);
+		} catch(IOException ex) {
+			plugin.getLogger().severe("Cannot save config.yml");
+		}
+
 	    
 		// Process currency family:
 	    String currencyFamiliyName = config.getString("currency-family");
