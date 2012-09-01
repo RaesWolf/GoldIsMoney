@@ -1,4 +1,4 @@
-package com.flobi.GoldIsMoney;
+package com.flobi.GoldIsMoney2;
 
 import java.text.DecimalFormat;
 import java.text.NumberFormat;

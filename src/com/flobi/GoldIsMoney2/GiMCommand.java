@@ -1,4 +1,4 @@
-package com.flobi.GoldIsMoney;
+package com.flobi.GoldIsMoney2;
 
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;

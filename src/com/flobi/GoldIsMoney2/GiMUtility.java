@@ -1,4 +1,4 @@
-package com.flobi.GoldIsMoney;
+package com.flobi.GoldIsMoney2;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;

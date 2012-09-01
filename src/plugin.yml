@@ -1,5 +1,5 @@
 name: GoldIsMoney
-main: com.flobi.GoldIsMoney.GoldIsMoney
+main: com.flobi.GoldIsMoney2.GoldIsMoney
 version: 2-beta.0.0
 
 description: Economy driven by inventory gold.
