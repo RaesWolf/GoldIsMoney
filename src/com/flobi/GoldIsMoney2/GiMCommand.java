@@ -158,7 +158,7 @@ public class GiMCommand implements CommandExecutor {
     			}
             	return true;
         	}
-        	sender.sendMessage(ChatColor.translateAlternateColorCodes('&', GiMUtility.config.getString("text-reloaded-perms-fail")));
+        	sender.sendMessage(ChatColor.translateAlternateColorCodes('&', GiMUtility.config.getString("text-admin-perms-fail")));
         	return true;
         } else if (command.getName().equalsIgnoreCase("money") || command.getName().equalsIgnoreCase("balance")) {
         	if (sender instanceof Player) {
