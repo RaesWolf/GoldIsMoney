@@ -113,7 +113,7 @@ public class GiMUtility {
 
 	public static void setDataFolder(File dataFolder) {
 		GiMUtility.dataFolder = dataFolder;
-		if (!dataFolder.isDirectory()) dataFolder.mkdir(); 
+		if (dataFolder != null && !dataFolder.isDirectory()) dataFolder.mkdir(); 
 		
 	}
 
