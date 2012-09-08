@@ -79,7 +79,7 @@ public class GoldIsMoney extends JavaPlugin {
             @EventHandler
 			public void inventoryClickEvent(InventoryClickEvent event) {
             	final String playerName = event.getWhoClicked().getName();
-            	getServer().getScheduler().scheduleAsyncDelayedTask(plugin, new Runnable() {
+            	getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
          		   public void run() {
                        	offloadSystemIOU(playerName);
         		   }
