@@ -53,7 +53,7 @@ public class GiMListener implements Listener {
     }
     
     private void syncPlayerInventory(final String playerName) {
-    	plugin.getServer().getScheduler().scheduleAsyncDelayedTask(plugin, new Runnable() {
+    	plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
   		   public void run() {
   		    	if (GoldIsMoney.hasAccount(playerName)) {
   		    		GoldIsMoney.getPlayerAccount(playerName).syncInventory();
