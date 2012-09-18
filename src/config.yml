@@ -12,3 +12,5 @@ fractional-digits: 0
 custom-currency: {}
 allow-fake-players: true
 allow-banks: true
+autocreate-accounts: true
+autocreated-bank-owner: flobi

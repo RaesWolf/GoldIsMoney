@@ -81,6 +81,9 @@ public class GoldIsMoney extends JavaPlugin {
     }
     public static boolean hasAccount(String playerName) {
     	// NOTE: Do not call getPlayerAccount in here, it would cause an infinite loop.
+    	if (GiMUtility.config.getBoolean("autocreate-accounts")) {
+    		return createPlayerAccount(playerName);
+    	}
     	return playerAccounts.containsKey(playerName);
     }
     public static boolean createPlayerAccount(String playerName) {
@@ -143,6 +146,9 @@ public class GoldIsMoney extends JavaPlugin {
     public static boolean bankExists(String bankName) {
     	// NOTE: Do not call getBankAccount in here, it would cause an infinite loop.
     	if (!hasBankSupport()) return false;
+    	if (GiMUtility.config.getBoolean("autocreate-accounts")) {
+    		return createBank(bankName, GiMUtility.config.getString("autocreated-bank-owner"));
+    	}
     	return bankAccounts.containsKey(bankName);
     }
     public static boolean addBankMember(String bankName, String playerName) {
