@@ -87,7 +87,8 @@ public class GoldIsMoney extends JavaPlugin {
     	return playerAccounts.containsKey(playerName);
     }
     public static boolean createPlayerAccount(String playerName) {
-    	if (hasAccount(playerName)) return true;
+    	// Don't use hasAccount here, will cause infinite loop.
+    	if (playerAccounts.containsKey(playerName)) return true;
     	if (!GiMUtility.config.getBoolean("allow-fake-players") && GiMUtility.plugin.getServer().getPlayer(playerName) == null) return false;
     	
     	playerAccounts.put(playerName, new PlayerAccount(playerName));
@@ -97,9 +98,10 @@ public class GoldIsMoney extends JavaPlugin {
     	return GiMUtility.config.getBoolean("allow-banks");
     }
     public static boolean createBank(String bankName, String playerName) {
-    	if (bankExists(bankName)) return true;
+    	// Don't use bankExists here, will cause infinite loop.
+    	if (bankAccounts.containsKey(bankName)) return true;
     	bankAccounts.put(bankName, new BankAccount(bankName));
-    	return bankExists(bankName);
+    	return bankAccounts.containsKey(bankName);
     }
     public static double bankBalance(String bankName) {
     	if (!bankExists(bankName)) return 0D;
