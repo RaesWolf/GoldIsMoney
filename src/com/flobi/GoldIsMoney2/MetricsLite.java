@@ -146,7 +146,7 @@ public class MetricsLite {
                         // Each post thereafter will be a ping
                         firstPost = false;
                     } catch (IOException e) {
-                        Bukkit.getLogger().log(Level.INFO, "[Metrics] " + e.getMessage());
+                        Bukkit.getLogger().log(Level.INFO, "[Metrics] {0}", e.getMessage());
                     }
                 }
             }, 0, PING_INTERVAL * 1200);
@@ -166,10 +166,10 @@ public class MetricsLite {
                 // Reload the metrics file
                 configuration.load(CONFIG_FILE);
             } catch (IOException ex) {
-                Bukkit.getLogger().log(Level.INFO, "[Metrics] " + ex.getMessage());
+                Bukkit.getLogger().log(Level.INFO, "[Metrics] {0}", ex.getMessage());
                 return true;
             } catch (InvalidConfigurationException ex) {
-                Bukkit.getLogger().log(Level.INFO, "[Metrics] " + ex.getMessage());
+                Bukkit.getLogger().log(Level.INFO, "[Metrics] {0}", ex.getMessage());
                 return true;
             }
             return configuration.getBoolean("opt-out", false);
