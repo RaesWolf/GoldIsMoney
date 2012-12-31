@@ -1,7 +1,5 @@
 package com.flobi.GoldIsMoney2;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -29,11 +27,9 @@ public class GiMUtility {
     	File saveFile = new File(dataFolder, filename);
     	Map<String, PlayerAccount> importedObjects = new HashMap<String, PlayerAccount>();
     	try {
-			//use buffering
 			if (saveFile.exists()) {
 				InputStream file = new FileInputStream(saveFile.getAbsolutePath());
-				InputStream buffer = new BufferedInputStream(file);
-				ObjectInput input = new ObjectInputStream (buffer);
+				ObjectInput input = new ObjectInputStream (file);
 				importedObjects = (Map<String, PlayerAccount>) input.readObject();
 				input.close();
 			}
@@ -48,11 +44,9 @@ public class GiMUtility {
     	File saveFile = new File(dataFolder, filename);
     	Map<String, BankAccount> importedObjects = new HashMap<String, BankAccount>();
     	try {
-			//use buffering
 			if (saveFile.exists()) {
 				InputStream file = new FileInputStream(saveFile.getAbsolutePath());
-				InputStream buffer = new BufferedInputStream(file);
-				ObjectInput input = new ObjectInputStream (buffer);
+				ObjectInput input = new ObjectInputStream (file);
 				importedObjects = (Map<String, BankAccount>) input.readObject();
 				input.close();
 			}
@@ -67,11 +61,9 @@ public class GiMUtility {
     	File saveFile = new File(dataFolder, filename);
     	Map<String, Long> importedObjects = new HashMap<String, Long>();
     	try {
-			//use buffering
 			if (saveFile.exists()) {
 				InputStream file = new FileInputStream(saveFile.getAbsolutePath());
-				InputStream buffer = new BufferedInputStream(file);
-				ObjectInput input = new ObjectInputStream (buffer);
+				ObjectInput input = new ObjectInputStream (file);
 				importedObjects = (Map<String, Long>) input.readObject();
 				input.close();
 			}
@@ -84,11 +76,9 @@ public class GiMUtility {
 		File saveFile = new File(dataFolder, filename);
 			    
 		try {
-			//use buffering
 			if (saveFile.exists()) saveFile.delete();
 			OutputStream file = new FileOutputStream(saveFile.getAbsolutePath());
-			OutputStream buffer = new BufferedOutputStream(file);
-			ObjectOutput output = new ObjectOutputStream(buffer);
+			ObjectOutput output = new ObjectOutputStream(file);
 			try {
 				output.writeObject(arraylist);
 			}
